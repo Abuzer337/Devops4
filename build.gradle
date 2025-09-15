@@ -1,0 +1,87 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.2.0'
+    id 'io.spring.dependency-management' version '1.1.3'
+    id 'jacoco'
+    id 'org.sonarqube' version '4.4.1.3373'
+}
+
+group = 'devops'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    lombokVersion = "1.18.36"
+    springBootVersion = "3.2.0"
+    postgresqlVersion = "42.7.3"
+}
+
+dependencies {
+    implementation ("org.springframework.boot:spring-boot-starter:${springBootVersion}")
+    implementation ("org.springframework.boot:spring-boot-starter-web:${springBootVersion}")
+    implementation ("org.springframework.boot:spring-boot-starter-data-jpa:${springBootVersion}")
+    implementation ("org.springframework.boot:spring-boot-starter-security:${springBootVersion}")
+    implementation ("org.springframework.boot:spring-boot-starter-actuator:${springBootVersion}")
+
+    // Prometheus
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+
+    // PostgreSQL
+    implementation "org.postgresql:postgresql:${postgresqlVersion}"
+
+    // Lombok
+    compileOnly ("org.projectlombok:lombok:${lombokVersion}")
+    annotationProcessor ("org.projectlombok:lombok:${lombokVersion}")
+    testCompileOnly ("org.projectlombok:lombok:${lombokVersion}")
+    testAnnotationProcessor ("org.projectlombok:lombok:${lombokVersion}")
+
+    // Тесты
+    testImplementation ("org.springframework.boot:spring-boot-starter-test:${springBootVersion}")
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
+
+    implementation 'jakarta.xml.bind:jakarta.xml.bind-api:4.0.0'
+    runtimeOnly 'org.glassfish.jaxb:jaxb-runtime:4.0.3'
+}
+
+test {
+    useJUnitPlatform()
+    maxParallelForks = 1
+    jvmArgs "-Dfile.encoding=UTF-8"
+    finalizedBy jacocoTestReport
+}
+
+jacoco {
+    toolVersion = "0.8.12"
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+        csv.required = false
+    }
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            element = 'CLASS'
+            limit {
+                counter = 'INSTRUCTION'
+                value = 'COVEREDRATIO'
+                minimum = 0.80
+            }
+            excludes = [
+                'devops.Main',
+                'devops.SecurityConfig',
+                'devops.controller.TelegramController'
+            ]
+        }
+    }
+}
+check.dependsOn jacocoTestCoverageVerification
