@@ -31,7 +31,7 @@ class CarControllerTest {
         List<Car> expectedCars = Arrays.asList(new Car(), new Car());
         when(carService.getCars()).thenReturn(expectedCars);
 
-        ResponseEntity<?> result = carController.GetCars();
+        ResponseEntity<?> result = carController.getCars();
 
         assertEquals(HttpStatus.OK, result.getStatusCode());
         assertEquals(expectedCars, result.getBody());
@@ -42,10 +42,10 @@ class CarControllerTest {
     void getCars_shouldReturnBadRequest_whenException() throws Exception {
         when(carService.getCars()).thenThrow(new Exception("Error"));
 
-        ResponseEntity<?> result = carController.GetCars();
+        ResponseEntity<?> result = carController.getCars();
 
         assertEquals(HttpStatus.BAD_REQUEST, result.getStatusCode());
-        assertEquals("{}", result.getBody());
+        assertNull(result.getBody());
     }
 
     @Test
@@ -54,7 +54,7 @@ class CarControllerTest {
         Car expectedCar = new Car();
         when(carService.getCarById(id)).thenReturn(expectedCar);
 
-        ResponseEntity<?> result = carController.GetCar(id);
+        ResponseEntity<?> result = carController.getCar(id);
 
         assertEquals(HttpStatus.OK, result.getStatusCode());
         assertEquals(expectedCar, result.getBody());
@@ -66,10 +66,10 @@ class CarControllerTest {
         Long id = 1L;
         when(carService.getCarById(id)).thenThrow(new Exception("Error"));
 
-        ResponseEntity<?> result = carController.GetCar(id);
+        ResponseEntity<?> result = carController.getCar(id);
 
         assertEquals(HttpStatus.BAD_REQUEST, result.getStatusCode());
-        assertEquals("{}", result.getBody());
+        assertNull(result.getBody());
     }
 
     @Test

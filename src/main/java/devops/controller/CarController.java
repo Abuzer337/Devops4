@@ -3,6 +3,7 @@ package devops.controller;
 import devops.model.Car;
 import devops.service.CarService;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,30 +12,31 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/cars")
 @CrossOrigin(origins = "*")
+@Slf4j
 public class CarController {
 
     private CarService carService;
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> GetCar(@PathVariable("id") Long id) {
+    public ResponseEntity<Car> getCar(@PathVariable("id") Long id) {
         try{
             return ResponseEntity.ok(carService.getCarById(id));
         }
         catch (Exception exception) {
-            System.out.println(exception.getMessage());
+            log.error("Error getting car with id {}: {}", id, exception.getMessage());
         }
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("{}");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
     }
 
     @GetMapping("/")
-    public ResponseEntity<?> GetCars() {
+    public ResponseEntity<java.util.List<Car>> getCars() {
         try {
             return ResponseEntity.ok(carService.getCars());
         }
         catch (Exception exception) {
-            System.out.println(exception.getMessage());
+            log.error("Error getting cars: {}", exception.getMessage());
         }
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("{}");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
     }
 
     @PostMapping("/add")

@@ -42,7 +42,7 @@ public class CarService {
             .orElseThrow(() -> new RuntimeException("Car not found"));
         destCar.setBrand(car.getBrand());
         destCar.setYear(car.getYear());
-        destCar.setVIN(car.getVIN());
+        destCar.setVin(car.getVin());
         destCar.setModel(car.getModel());
         destCar.setMileage(car.getMileage());
         Car updatedCar = carRepository.save(destCar);

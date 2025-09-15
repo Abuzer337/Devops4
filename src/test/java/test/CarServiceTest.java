@@ -68,7 +68,7 @@ class CarServiceTest {
 
         carService.removeCarById(id);
 
-        verify(carRepository).getById(id);
+        verify(carRepository).findById(id);
         verify(carRepository).deleteById(id);
         verify(telegramService).sendCarNotification("Удален автомобиль", "BMW", car.getYear());
     }
@@ -84,13 +84,13 @@ class CarServiceTest {
         existingCar.setBrand("Audi");
         existingCar.setModel("A4");
         
-        when(carRepository.getById(id)).thenReturn(existingCar);
+        when(carRepository.findById(id)).thenReturn(java.util.Optional.of(existingCar));
         when(carRepository.save(existingCar)).thenReturn(existingCar);
 
         Car result = carService.updateCar(carToUpdate, id);
 
         assertEquals(existingCar, result);
-        verify(carRepository).getById(id);
+        verify(carRepository).findById(id);
         verify(carRepository).save(existingCar);
         verify(telegramService).sendCarNotification("Обновлен автомобиль", "BMW", existingCar.getYear());
     }
@@ -104,7 +104,7 @@ class CarServiceTest {
         Car result = carService.getCarById(id);
 
         assertEquals(expectedCar, result);
-        verify(carRepository).getById(id);
+        verify(carRepository).findById(id);
     }
 
     @Test
@@ -113,6 +113,6 @@ class CarServiceTest {
         when(carRepository.getById(id)).thenReturn(null);
 
         assertThrows(Exception.class, () -> carService.getCarById(id));
-        verify(carRepository).getById(id);
+        verify(carRepository).findById(id);
     }
 }
