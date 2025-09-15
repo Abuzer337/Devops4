@@ -21,12 +21,13 @@ send_telegram() {
 
 # 1. Клонирование репозитория
 echo "📥 Клонирование репозитория..."
+rm -rf devops-backend
 git clone "${GITHUB_REPO}" devops-backend
 cd devops-backend
 
 # 2. Ожидание готовности SonarQube
 echo "⏳ Ожидание готовности SonarQube..."
-until curl -s http://sonarqube:9000/api/system/status | jq -r '.status' | grep -q 'UP'; do
+until curl -s http://sonarqube:9000/api/system/status | grep -q '"status":"UP"'; do
   echo "SonarQube еще не готов, ждем..."
   sleep 10
 done
@@ -34,6 +35,7 @@ echo "✅ SonarQube готов!"
 
 # 3. Сборка проекта
 echo "🔨 Сборка проекта..."
+chmod +x ./gradlew
 ./gradlew clean build test --continue
 
 # 4. Запуск анализа SonarQube

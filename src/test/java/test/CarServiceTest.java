@@ -64,7 +64,7 @@ class CarServiceTest {
         Long id = 1L;
         Car car = new Car();
         car.setBrand("BMW");
-        when(carRepository.getById(id)).thenReturn(car);
+        when(carRepository.findById(id)).thenReturn(java.util.Optional.of(car));
 
         carService.removeCarById(id);
 
@@ -99,7 +99,7 @@ class CarServiceTest {
     void getCarById_shouldReturnCar_whenExists() throws Exception {
         Long id = 1L;
         Car expectedCar = new Car();
-        when(carRepository.getById(id)).thenReturn(expectedCar);
+        when(carRepository.findById(id)).thenReturn(java.util.Optional.of(expectedCar));
 
         Car result = carService.getCarById(id);
 
@@ -110,7 +110,7 @@ class CarServiceTest {
     @Test
     void getCarById_shouldThrowException_whenNotFound() {
         Long id = 1L;
-        when(carRepository.getById(id)).thenReturn(null);
+        when(carRepository.findById(id)).thenReturn(java.util.Optional.empty());
 
         assertThrows(Exception.class, () -> carService.getCarById(id));
         verify(carRepository).findById(id);
