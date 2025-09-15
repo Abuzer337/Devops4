@@ -1,0 +1,188 @@
+version: '3.8'
+
+services:
+  # SonarQube сервер
+  sonarqube:
+    image: sonarqube:9.9-community
+    container_name: sonarqube-server
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_JDBC_URL=jdbc:postgresql://sonar-db:5432/sonar
+      - SONAR_JDBC_USERNAME=sonar
+      - SONAR_JDBC_PASSWORD=sonar
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+    depends_on:
+      - sonar-db
+    networks:
+      - sonar-network
+
+  # PostgreSQL для SonarQube
+  sonar-db:
+    image: postgres:13
+    container_name: sonar-database
+    environment:
+      - POSTGRES_USER=sonar
+      - POSTGRES_PASSWORD=sonar
+      - POSTGRES_DB=sonar
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+    networks:
+      - sonar-network
+
+  # Анализатор кода - автоматически анализирует код из GitHub
+  sonar-analyzer:
+    image: gradle:8.5-jdk17
+    container_name: sonar-analyzer
+    working_dir: /app
+    environment:
+      - SONAR_HOST_URL=http://sonarqube:9000
+      - SONAR_LOGIN=squ_47bce0deb9f4aa76523c0609bae2b8e7d0272903
+      - SONAR_PROJECT_KEY=devops:DevOps
+      - GITHUB_REPO=https://github.com/Abuzer337/Devops4.git
+      - TELEGRAM_BOT_TOKEN=8214582880:AAFnIB94F9bH-m6SNRNR9ktGph5lGW_ZSZs
+      - TELEGRAM_CHAT_ID=931340901
+    volumes:
+      - ./sonar-analysis.sh:/app/sonar-analysis.sh:ro
+      - gradle_cache:/root/.gradle
+    command: >
+      bash -c "
+        echo '🚀 Запуск автоматического анализа SonarQube...' &&
+        echo '⏰ Время: $(date)' &&
+        echo '📁 Репозиторий: ${GITHUB_REPO}' &&
+        echo '' &&
+        
+        # Установка зависимостей
+        apt-get update && apt-get install -y git curl jq &&
+        
+        # Клонирование репозитория
+        echo '📥 Клонирование репозитория...' &&
+        git clone ${GITHUB_REPO} devops-backend &&
+        cd devops-backend &&
+        
+        # Ожидание готовности SonarQube
+        echo '⏳ Ожидание готовности SonarQube...' &&
+        until curl -s http://sonarqube:9000/api/system/status | jq -r '.status' | grep -q 'UP'; do
+          echo 'SonarQube еще не готов, ждем...' &&
+          sleep 10
+        done &&
+        echo '✅ SonarQube готов!' &&
+        
+        # Сборка и анализ
+        echo '🔨 Сборка проекта...' &&
+        ./gradlew clean build test --continue &&
+        
+        echo '📊 Запуск анализа SonarQube...' &&
+        ./gradlew sonar \
+          -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+          -Dsonar.host.url=${SONAR_HOST_URL} \
+          -Dsonar.login=${SONAR_LOGIN} \
+          -Dsonar.qualitygate.wait=true &&
+        
+        # Отправка уведомления в Telegram
+        echo '📱 Отправка уведомления в Telegram...' &&
+        curl -s -X POST 'https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage' \
+          -d 'chat_id=${TELEGRAM_CHAT_ID}' \
+          -d 'text=🎉 <b>АВТОМАТИЧЕСКИЙ АНАЛИЗ ЗАВЕРШЕН!</b>
+
+✅ <b>Результаты:</b>
+🌐 Репозиторий: ${GITHUB_REPO}
+📊 Анализ: УСПЕШНО
+🔗 Dashboard: http://89.169.128.126:9000/dashboard?id=${SONAR_PROJECT_KEY}
+⏰ Время: $(date)
+
+🎯 <b>Что проанализировано:</b>
+• Покрытие кода тестами
+• Поиск багов и уязвимостей
+• Проверка дублированного кода
+• Анализ качества кода
+• Quality Gate проверка
+
+🚀 <b>Анализ выполнен автоматически из Docker Compose!</b>' \
+          -d 'parse_mode=HTML' &&
+        
+        echo '✅ Анализ завершен успешно!' &&
+        echo '🔗 Результаты: ${SONAR_HOST_URL}/dashboard?id=${SONAR_PROJECT_KEY}'
+      "
+    depends_on:
+      - sonarqube
+    networks:
+      - sonar-network
+    restart: unless-stopped
+
+  # Мониторинг SonarQube
+  sonar-monitor:
+    image: curlimages/curl:latest
+    container_name: sonar-monitor
+    environment:
+      - SONAR_HOST_URL=http://sonarqube:9000
+      - TELEGRAM_BOT_TOKEN=8214582880:AAFnIB94F9bH-m6SNRNR9ktGph5lGW_ZSZs
+      - TELEGRAM_CHAT_ID=931340901
+    command: >
+      bash -c "
+        echo '🔍 Запуск мониторинга SonarQube...' &&
+        while true; do
+          echo '⏰ Проверка статуса: $(date)' &&
+          
+          # Проверка статуса SonarQube
+          STATUS=$$(curl -s http://sonarqube:9000/api/system/status | jq -r '.status' 2>/dev/null || echo 'DOWN') &&
+          
+          if [ \"$$STATUS\" = \"UP\" ]; then
+            echo '✅ SonarQube работает' &&
+            
+            # Проверка Quality Gate
+            QG_STATUS=$$(curl -s 'http://sonarqube:9000/api/qualitygates/project_status?projectKey=devops:DevOps' | jq -r '.projectStatus.status' 2>/dev/null || echo 'UNKNOWN') &&
+            
+            if [ \"$$QG_STATUS\" = \"OK\" ]; then
+              echo '✅ Quality Gate: ПРОЙДЕН' &&
+              curl -s -X POST 'https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage' \
+                -d 'chat_id=${TELEGRAM_CHAT_ID}' \
+                -d 'text=✅ <b>QUALITY GATE ПРОЙДЕН!</b>
+
+🎯 Проект соответствует всем требованиям качества кода!' \
+                -d 'parse_mode=HTML' 2>/dev/null || true
+            else
+              echo '❌ Quality Gate: НЕ ПРОЙДЕН ($$QG_STATUS)' &&
+              curl -s -X POST 'https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage' \
+                -d 'chat_id=${TELEGRAM_CHAT_ID}' \
+                -d 'text=❌ <b>QUALITY GATE НЕ ПРОЙДЕН!</b>
+
+🔍 Статус: $$QG_STATUS
+🔗 Проверьте: http://89.169.128.126:9000/dashboard?id=devops:DevOps' \
+                -d 'parse_mode=HTML' 2>/dev/null || true
+            fi
+          else
+            echo '❌ SonarQube недоступен' &&
+            curl -s -X POST 'https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage' \
+              -d 'chat_id=${TELEGRAM_CHAT_ID}' \
+              -d 'text=❌ <b>SONARQUBE НЕДОСТУПЕН!</b>
+
+🔍 Статус: $$STATUS
+⏰ Время: $(date)' \
+              -d 'parse_mode=HTML' 2>/dev/null || true
+          fi &&
+          
+          echo '⏳ Ожидание 5 минут...' &&
+          sleep 300
+        done
+      "
+    depends_on:
+      - sonarqube
+    networks:
+      - sonar-network
+    restart: unless-stopped
+
+volumes:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:
+  postgresql_data:
+  gradle_cache:
+
+networks:
+  sonar-network:
+    driver: bridge
